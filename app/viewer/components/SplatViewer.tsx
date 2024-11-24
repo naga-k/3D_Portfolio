@@ -1,6 +1,6 @@
 // app/viewer/components/SplatViewer.tsx
 'use client';
-import React, { useRef, useCallback, useMemo, useState } from 'react';
+import React, { useRef, useCallback, useMemo, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stats, PerspectiveCamera, Html } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -10,6 +10,7 @@ import { SceneSetup } from './SceneSetup';
 import * as THREE from 'three'; 
 import { ErrorBoundary } from 'react-error-boundary';
 import { InfoPanel } from './InfoPanel';
+import { processUrl } from '@/app/utils/urlUtils';
 
 interface SplatViewerProps {
   splatUrl: string | null;
@@ -27,6 +28,32 @@ export default function SplatViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [processedUrl, setProcessedUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUrl() {
+      if (!splatUrl) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+        const url = await processUrl(splatUrl);
+        setProcessedUrl(url);
+      } catch (err: any) {
+        setError(err.message);
+        console.error('Error processing URL:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadUrl();
+  }, [splatUrl]);
 
   const handleReset = useCallback(() => {
     if (controlsRef.current) {
@@ -37,12 +64,26 @@ export default function SplatViewer({
   // Create GridHelper using useMemo to prevent re-creation on every render
   const gridHelper = useMemo(() => new THREE.GridHelper(100, 100, 'white', 'gray'), []);
 
-  if (!splatUrl) {
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading Splat...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !processedUrl) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
         <div className="text-center">
-          <p>No Splat to display.</p>
-          <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
+          <p className="text-red-500 mb-4">{error || 'No Splat to display.'}</p>
+          <button 
+            onClick={onClose} 
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
             Go Home
           </button>
         </div>
@@ -69,7 +110,10 @@ export default function SplatViewer({
             <Html center>
               <div className="text-center">
                 <p className="text-red-500">Failed to load Splat</p>
-                <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
+                <button 
+                  onClick={onClose} 
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
                   Go Home
                 </button>
               </div>
@@ -90,7 +134,7 @@ export default function SplatViewer({
             minPolarAngle={Math.PI * 0.25}
             target={[0, 0, 0]}
           />
-          <SceneSetup splatUrl={splatUrl} />
+          <SceneSetup splatUrl={processedUrl} />
           <primitive object={gridHelper} />
         </ErrorBoundary>
       </Canvas>

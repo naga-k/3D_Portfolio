@@ -2,6 +2,7 @@
 'use client';
 import React from 'react';
 import MasonryGrid from './components/MasonryGrid';
+import SplatUrlInput from './components/SplatUrlInput';
 
 export default function Home() {
   return (
@@ -16,6 +17,7 @@ export default function Home() {
                   transition-transform duration-500">
            DiffStudio.Gallery
            </h1>
+           <SplatUrlInput />
         </div>
       </header>
       <div className="mx-auto max-w-7xl min-h-screen">
